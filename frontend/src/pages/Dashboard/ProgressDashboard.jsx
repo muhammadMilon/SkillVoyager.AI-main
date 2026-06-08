@@ -977,83 +977,196 @@ const NeuralBg = () => {
 /* ═══════════════════════════════════════════════
    MISSION RING
 ═══════════════════════════════════════════════ */
-const MissionRing = ({ pct = 0, targetRole = '' }) => {
-  const size = 240, stroke = 8, r = (size - stroke * 2) / 2;
+import React, { memo, useMemo } from "react";
+import { motion } from "framer-motion";
+
+const clamp = (v, min = 0, max = 100) => Math.min(max, Math.max(min, v));
+
+const MissionRing = memo(({ pct = 0, targetRole = "", showPulse = true }) => {
+  const progress = useMemo(() => clamp(pct), [pct]);
+
+  const size = 240;
+  const stroke = 8;
+  const r = (size - stroke * 2) / 2;
   const circ = 2 * Math.PI * r;
-  const endAngle = (pct / 100) * 2 * Math.PI - Math.PI / 2;
+
+  const angle = (progress / 100) * 2 * Math.PI - Math.PI / 2;
+
+  // unique ids to avoid SVG conflicts
+  const gradId = useMemo(
+    () => `arcGrad-${Math.random().toString(36).slice(2)}`,
+    []
+  );
+  const blurId = useMemo(
+    () => `arcBlur-${Math.random().toString(36).slice(2)}`,
+    []
+  );
 
   return (
-    <div style={{ position:'relative', width:size, height:size }}>
-      <div style={{ position:'absolute', inset:-16, borderRadius:'50%', border:'1px solid rgba(0,212,255,0.08)' }} />
-      <div style={{ position:'absolute', inset:-28, borderRadius:'50%', border:'1px dashed rgba(0,212,255,0.04)' }} />
-      <div className="nos-pulse-ring" style={{ inset:-4, animationDelay:'0s' }} />
-      <div className="nos-pulse-ring" style={{ inset:-4, animationDelay:'1s' }} />
+    <div style={{ position: "relative", width: size, height: size }}>
+      {/* outer rings */}
+      <div
+        style={{
+          position: "absolute",
+          inset: -16,
+          borderRadius: "50%",
+          border: "1px solid rgba(0,212,255,0.08)",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          inset: -28,
+          borderRadius: "50%",
+          border: "1px dashed rgba(0,212,255,0.04)",
+        }}
+      />
 
-      <svg width={size} height={size} style={{ transform:'rotate(-90deg)', position:'relative', zIndex:1 }}>
+      {/* pulse (optional) */}
+      {showPulse && (
+        <>
+          <div className="nos-pulse-ring" style={{ inset: -4 }} />
+          <div
+            className="nos-pulse-ring"
+            style={{ inset: -4, animationDelay: "1s" }}
+          />
+        </>
+      )}
+
+      <svg
+        width={size}
+        height={size}
+        style={{ transform: "rotate(-90deg)", position: "relative", zIndex: 1 }}
+      >
         <defs>
-          <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%"   stopColor="#00d4ff" />
-            <stop offset="50%"  stopColor="#7c3aed" />
+          <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#00d4ff" />
+            <stop offset="50%" stopColor="#7c3aed" />
             <stop offset="100%" stopColor="#00ff9d" />
           </linearGradient>
-          <filter id="arcBlur">
-            <feGaussianBlur stdDeviation="1.5" result="blur"/>
-            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+
+          <filter id={blurId}>
+            <feGaussianBlur stdDeviation="1.5" />
           </filter>
         </defs>
 
-        {Array.from({ length:60 }, (_,i) => {
-          const a = (i/60)*2*Math.PI;
-          const isMajor = i%5===0;
-          const inner = r-(isMajor?10:5), outer = r-1;
+        {/* tick marks */}
+        {Array.from({ length: 60 }).map((_, i) => {
+          const a = (i / 60) * 2 * Math.PI;
+          const isMajor = i % 5 === 0;
+
+          const inner = r - (isMajor ? 10 : 5);
+          const outer = r - 1;
+
           return (
-            <line key={i}
-              x1={size/2+Math.cos(a)*inner} y1={size/2+Math.sin(a)*inner}
-              x2={size/2+Math.cos(a)*outer} y2={size/2+Math.sin(a)*outer}
-              stroke={isMajor?'rgba(0,212,255,0.3)':'rgba(0,212,255,0.1)'}
-              strokeWidth={isMajor?1:0.5}
+            <line
+              key={i}
+              x1={size / 2 + Math.cos(a) * inner}
+              y1={size / 2 + Math.sin(a) * inner}
+              x2={size / 2 + Math.cos(a) * outer}
+              y2={size / 2 + Math.sin(a) * outer}
+              stroke={
+                isMajor ? "rgba(0,212,255,0.3)" : "rgba(0,212,255,0.1)"
+              }
+              strokeWidth={isMajor ? 1 : 0.5}
             />
           );
         })}
 
-        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(0,212,255,0.05)" strokeWidth={stroke} />
-        <motion.circle cx={size/2} cy={size/2} r={r} fill="none"
-          stroke="url(#arcGrad)" strokeWidth={stroke} strokeLinecap="round"
-          strokeDasharray={circ}
-          initial={{ strokeDashoffset:circ }}
-          animate={{ strokeDashoffset:circ*(1-pct/100) }}
-          transition={{ duration:2.8, ease:[0.16,1,0.3,1] }}
-          filter="url(#arcBlur)" className="nos-arc-glow"
+        {/* base ring */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="rgba(0,212,255,0.05)"
+          strokeWidth={stroke}
         />
-        {pct > 1 && (
+
+        {/* progress arc */}
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={`url(#${gradId})`}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={circ}
+          initial={{ strokeDashoffset: circ }}
+          animate={{ strokeDashoffset: circ * (1 - progress / 100) }}
+          transition={{ duration: 2.5, ease: [0.16, 1, 0.3, 1] }}
+          filter={`url(#${blurId})`}
+        />
+
+        {/* end dot */}
+        {progress > 1 && (
           <motion.circle
-            cx={size/2+Math.cos(endAngle)*r} cy={size/2+Math.sin(endAngle)*r}
-            r={5} fill="#00d4ff"
-            initial={{ opacity:0, r:0 }} animate={{ opacity:1, r:5 }}
-            transition={{ delay:2.5 }}
-            style={{ filter:'drop-shadow(0 0 8px #00d4ff) drop-shadow(0 0 20px rgba(0,212,255,0.6))' }}
+            cx={size / 2 + Math.cos(angle) * r}
+            cy={size / 2 + Math.sin(angle) * r}
+            r={5}
+            fill="#00d4ff"
+            initial={{ opacity: 0, scale: 0 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 2 }}
+            style={{
+              filter:
+                "drop-shadow(0 0 8px #00d4ff) drop-shadow(0 0 20px rgba(0,212,255,0.6))",
+            }}
           />
         )}
       </svg>
 
-      <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', zIndex:2 }}>
-        <motion.div initial={{ scale:0, opacity:0 }} animate={{ scale:1, opacity:1 }}
-          transition={{ delay:0.6, duration:1, ease:[0.22,1,0.36,1] }}
-          style={{ textAlign:'center' }}>
-          <div className="nos-mono" style={{ fontSize:9, color:'rgba(0,212,255,0.5)', letterSpacing:'0.14em', textTransform:'uppercase', marginBottom:4 }}>SYS.MASTERY</div>
-          <div className="nos-orb nos-glow-blue" style={{ fontSize:52, fontWeight:900, color:'#00d4ff', lineHeight:1 }}>
-            {pct}<span style={{ fontSize:22, color:'rgba(0,212,255,0.5)' }}>%</span>
+      {/* center content */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 2,
+        }}
+      >
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          style={{ textAlign: "center" }}
+        >
+          <div className="nos-mono" style={{ fontSize: 10, opacity: 0.6 }}>
+            SYS.MASTERY
           </div>
-          <div style={{ width:40, height:1, background:'linear-gradient(90deg,transparent,rgba(0,212,255,0.5),transparent)', margin:'8px auto' }} />
-          <div className="nos-mono" style={{ fontSize:9, color:'rgba(0,255,157,0.6)', letterSpacing:'0.06em', maxWidth:110, lineHeight:1.4 }}>
-            {targetRole || 'TARGET.LOCKED'}
+
+          <div style={{ fontSize: 52, fontWeight: 900, color: "#00d4ff" }}>
+            {progress}
+            <span style={{ fontSize: 20, opacity: 0.6 }}>%</span>
+          </div>
+
+          <div
+            style={{
+              width: 40,
+              height: 1,
+              margin: "8px auto",
+              background:
+                "linear-gradient(90deg,transparent,rgba(0,212,255,0.5),transparent)",
+            }}
+          />
+
+          <div
+            className="nos-mono"
+            style={{ fontSize: 9, opacity: 0.7, maxWidth: 120 }}
+          >
+            {targetRole || "TARGET.LOCKED"}
           </div>
         </motion.div>
       </div>
     </div>
   );
-};
+});
 
+export default MissionRing;
 /* ═══════════════════════════════════════════════
    DYNAMIC STAT CARD
 ═══════════════════════════════════════════════ */
